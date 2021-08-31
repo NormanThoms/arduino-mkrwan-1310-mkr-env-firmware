@@ -1,8 +1,6 @@
 /*
-
   Datacake Arduino MKR WAN 1310 + MKR ENV Demo Firmware
   Made for The Things Summer Academy
-
 */
 
 #include <MKRWAN.h>
@@ -14,9 +12,9 @@ LoRaModem modem(Serial1);
 
 // LoRaWAN Configuration
 // Get your devEUI from Murata Module
-#define LORAREGION EU868
-String appEui = "";
-String appKey = "";
+#define LORAREGION US915
+String appEui = "0000000000000000";
+String appKey = "926C29B2EEFF8890D9A853C618EFAACB";
 
 // CayenneLPP Configuration
 CayenneLPP lpp(51);
@@ -33,7 +31,15 @@ void setup() {
     while (1) {}
   };
 
+  // Enable US915-928 channels
+  // LoRaWAN® Regional Parameters and TTN specification: channels 8 to 15 plus 65 
+  modem.sendMask("ff000001f000ffff00020000");
+  Serial.print("Set Channel Mask --> ");
+  Serial.println(modem.getChannelMask());
+  modem.setADR(true);
+
   // Connect via LoRaWAN
+  Serial.println("Connecting...");
   int connected = modem.joinOTAA(appEui, appKey);
 
   // Check Connectivity
@@ -41,6 +47,9 @@ void setup() {
     Serial.println("Something went wrong; are you indoor? Move near a window and retry");
     while (1) {}
   }
+
+  // print an empty line
+  Serial.println();
 
   // We are connected ... idle a few
   delay(1000);
@@ -58,14 +67,45 @@ void setup() {
 void loop() {
 
   // Read Sensors from ENV Board
-  float temperature = ENV.readTemperature();
+  Serial.println("Reading sensor values...");
+
+  float temperature = ENV.readTemperature(FAHRENHEIT);
   float humidity    = ENV.readHumidity();
-  float pressure    = ENV.readPressure();
-  float illuminance = ENV.readIlluminance();
+  float pressure    = ENV.readPressure(PSI);
+  float illuminance = ENV.readIlluminance(LUX);
   float uva         = ENV.readUVA();
   float uvb         = ENV.readUVB();
   float uvIndex     = ENV.readUVIndex();  
 
+// print each of the sensor values
+  Serial.print("  Temperature = ");
+  Serial.print(temperature);
+  Serial.println(" °F");
+
+  Serial.print("  Humidity    = ");
+  Serial.print(humidity);
+  Serial.println(" %");
+
+  Serial.print("  Pressure    = ");
+  Serial.print(pressure);
+  Serial.println(" psi");
+
+  Serial.print("  Illuminance = ");
+  Serial.print(illuminance);
+  Serial.println(" lx");
+
+  Serial.print("  UVA         = ");
+  Serial.print(uva);
+  Serial.println(" ");
+
+  Serial.print("  UVB         = ");
+  Serial.print(uvb);
+  Serial.println(" ");
+  
+  Serial.print("  UV Index    = ");
+  Serial.print(uvIndex);
+  Serial.println(" ");
+  
   // Create LPP
   lpp.reset();
   lpp.addTemperature(0, temperature);
@@ -77,6 +117,7 @@ void loop() {
   lpp.addTemperature(3, uvIndex);
 
   // Send LPP Packet over LoRaWAN
+  Serial.println("Sending message...");
   modem.beginPacket();
   modem.write(lpp.getBuffer(), lpp.getSize());
   int err = modem.endPacket(true);
@@ -92,4 +133,7 @@ void loop() {
 
   // Idle 60 secs and start again
   delay(60000);
+
+  // print an empty line
+  Serial.println();
 }
